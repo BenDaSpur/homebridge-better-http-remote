@@ -43,7 +43,7 @@ Based on your `mainbedroom.yaml`, you can configure the platform like this:
 ```json
 {
   "platform": "BetterHttpRemote",
-  "name": "HTTP Remote",
+  "name": "ESPHome Buttons",
   "devices": [
     {
       "name": "Main Bedroom",
@@ -71,7 +71,7 @@ You can skip listing devices and baseUrls entirely. Set **`discoverDevicesOnNetw
 ```json
 {
   "platform": "BetterHttpRemote",
-  "name": "HTTP Remote",
+  "name": "ESPHome Buttons",
   "discoverDevicesOnNetwork": true
 }
 ```
@@ -149,7 +149,7 @@ On the server, edit the Homebridge config (often `~/.homebridge/config.json` or 
 ```json
 {
   "platform": "BetterHttpRemote",
-  "name": "HTTP Remote",
+  "name": "ESPHome Buttons",
   "devices": [
     {
       "name": "Main Bedroom",

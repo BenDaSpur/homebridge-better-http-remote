@@ -26,7 +26,7 @@ export class RemoteButtonAccessory {
     this.accessory
       .getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'ESPHome')
-      .setCharacteristic(this.platform.Characteristic.Model, 'HTTP Remote Button')
+      .setCharacteristic(this.platform.Characteristic.Model, 'ESPHome Button')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, button.uniqueId);
 
     this.service = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);

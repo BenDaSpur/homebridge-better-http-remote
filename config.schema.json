@@ -11,7 +11,7 @@
       "name": {
         "title": "Platform Name",
         "type": "string",
-        "default": "HTTP Remote",
+        "default": "ESPHome Buttons",
         "description": "Name of the platform in Homebridge."
       },
       "repeatIntervalMs": {
