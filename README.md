@@ -145,6 +145,60 @@ Restart the Homebridge process (service, Docker, or `homebridge -D`), then in th
 
 ---
 
+## Publishing to npm (so others can install it)
+
+To have your plugin installable like any other Homebridge plugin (from the Homebridge UI or `npm install -g homebridge-better-http-remote`):
+
+### 1. Before first publish
+
+- **npm account:** Create one at [npmjs.com](https://www.npmjs.com/signup) if you don’t have it.
+- **package.json:** Set **author** to your name or `"Your Name <you@example.com>"` (homepage/repository/bugs URLs are already set for this repo).
+- **GitHub:** Ensure the repo is pushed to GitHub so the package links work.
+
+### 2. Publish to npm
+
+From the project root:
+
+```bash
+npm run lint          # must pass
+npm run build         # builds dist/
+npm login             # log in to npm (one-time or when session expires)
+npm publish          # publishes; runs prepublishOnly (lint + build) first
+```
+
+- The first time you publish, the package name `homebridge-better-http-remote` will be created on npm (it must be unused).
+- After that, **only you** can publish new versions of this package (same npm user).
+
+### 3. Installing the published plugin
+
+Once published, anyone (including you) can install it like other plugins:
+
+- **Homebridge UI:** Plugins → search for “Better HTTP Remote” or “homebridge-better-http-remote” and install.
+- **CLI:**
+  ```bash
+  npm install -g homebridge-better-http-remote
+  ```
+
+Then add the **BetterHttpRemote** platform to the Homebridge config (see config example above) and restart Homebridge.
+
+### 4. Releasing updates
+
+Bump the version, then publish again:
+
+```bash
+npm version patch   # 1.0.0 → 1.0.1 (or minor/major)
+npm publish
+```
+
+### 5. Automatic publish from GitHub (optional)
+
+A **Publish to npm** workflow runs when code is pushed to the `latest` branch. It runs lint, build, then `npm publish`.
+
+- **Repo secret:** In the repo settings, add a secret **`NPM_TOKEN`** with an [npm access token](https://www.npmjs.com/settings/~yourusername/tokens) (use “Automation” type for CI).
+- **To release:** Bump the version in `package.json` (e.g. `npm version patch`), push to `latest`; the workflow will publish that version to npm. If the version was already published, the job will fail (reminder to bump again).
+
+---
+
 <span align="center">
 
 # Homebridge Platform Plugin Template (development)
