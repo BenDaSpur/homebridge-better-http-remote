@@ -54,7 +54,10 @@ export interface BetterHttpRemotePlatformConfig extends PlatformConfig {
   fireAndForget?: boolean;
   /** "button" = momentary (fire-and-forget, single press); "switch" = toggle with optional repeat. Default "button". */
   controlType?: ControlType;
-  /** When false (default), one accessory per button so each shows its name in Home. When true, one "remote" per device (grouped) but Home may show the same name for each control. */
+  /**
+   * When false (default), one accessory per button so each shows its name in Home.
+   * When true, one "remote" per device (grouped) but Home may show the same name for each control.
+   */
   singleRemotePerDevice?: boolean;
   /** When true, discover all ESPHome devices on the network via mDNS; devices array is optional. */
   discoverDevicesOnNetwork?: boolean;
