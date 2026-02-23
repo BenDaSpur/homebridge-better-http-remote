@@ -2,7 +2,7 @@
   "name": "homebridge-esphome-buttons",
   "displayName": "ESPHome Buttons",
   "type": "module",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Expose ESPHome device buttons as HomeKit switches (trigger via HTTP). Hold to repeat for brightness/fan.",
   "author": "Your Name",
   "license": "Apache-2.0",
