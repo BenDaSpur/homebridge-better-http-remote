@@ -1,17 +1,75 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "homebridge-better-http-remote",
   "pluginType": "platform",
   "singular": true,
   "strictValidation": false,
   "schema": {
     "type": "object",
-    "required": ["name"],
+    "required": ["name", "devices"],
     "additionalProperties": false,
     "properties": {
       "name": {
-        "title": "Name",
+        "title": "Platform Name",
         "type": "string",
-        "default": "Example Dynamic Platform"
+        "default": "HTTP Remote",
+        "description": "Name of the platform in Homebridge."
+      },
+      "repeatIntervalMs": {
+        "title": "Repeat interval (ms)",
+        "type": "number",
+        "default": 250,
+        "minimum": 0,
+        "description": "While the switch is held on, send a button press every this many ms (e.g. 200–300 for brightness/fan). Set to 0 for single press only."
+      },
+      "devices": {
+        "title": "ESPHome Devices",
+        "type": "array",
+        "description": "List of ESPHome devices (with web server) whose buttons you want to expose in HomeKit.",
+        "items": {
+          "type": "object",
+          "required": ["name", "baseUrl", "buttons"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "Device Name",
+              "description": "Friendly name for the device (e.g. Main Bedroom)."
+            },
+            "baseUrl": {
+              "type": "string",
+              "title": "Base URL",
+              "description": "Base URL of the ESPHome device web server, e.g. http://mainbedroom.local or http://192.168.1.10. No trailing slash."
+            },
+            "buttons": {
+              "type": "array",
+              "title": "Buttons",
+              "description": "Buttons to expose. Each appears as a switch in HomeKit; turning it on triggers the button press. Hold on to repeat (see repeatIntervalMs).",
+              "items": {
+                "type": "object",
+                "required": ["name", "id"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "title": "Button Name",
+                    "description": "Display name in HomeKit (e.g. Fan on/off)."
+                  },
+                  "id": {
+                    "type": "string",
+                    "title": "Button ID",
+                    "description": "ESPHome button object_id. If the button has no explicit id in YAML, ESPHome derives it from the name. You can set id in ESPHome for predictability, or find the id in the device's web UI."
+                  },
+                  "repeatIntervalMs": {
+                    "type": "number",
+                    "title": "Repeat interval (ms)",
+                    "minimum": 0,
+                    "description": "Override for this button. 0 = single press only; e.g. 200 = hold to repeat every 200ms."
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

@@ -6,7 +6,148 @@
 
 <span align="center">
 
-# Homebridge Platform Plugin Template
+# Better HTTP Remote
+
+</span>
+
+Expose **ESPHome device buttons** as HomeKit switches. When you turn a switch "on" in the Home app, the plugin sends an HTTP POST to your ESPHome device’s web server to trigger that button (e.g. RF remote commands). No state is read back—each switch is a stateless trigger.
+
+---
+
+## ESPHome setup
+
+1. Enable the **web server** on your ESPHome device (you already have `web_server:` in your YAML).
+2. Give each button a stable **`id`** so the plugin can call it. The plugin calls `POST {baseUrl}/button/{id}/press`.
+
+   In your ESPHome YAML, add an `id` to each template button, for example:
+
+   ```yaml
+   button:
+     - platform: template
+       name: 'Fan on/off'
+       id: fan_on_off # use this id in Homebridge config
+       on_press:
+         - remote_transmitter.transmit_rc_switch_raw: ...
+   ```
+
+   If you don’t set `id`, ESPHome generates one from the name (e.g. `"Fan on/off"` → `fan-on-off`). You can find the generated id in the device’s web UI or by listing the buttons.
+
+3. In Homebridge, add the **Better HTTP Remote** platform and list your devices and buttons (see example below).
+
+---
+
+## Homebridge config example
+
+Based on your `mainbedroom.yaml`, you can configure the platform like this:
+
+```json
+{
+  "platform": "BetterHttpRemote",
+  "name": "HTTP Remote",
+  "devices": [
+    {
+      "name": "Main Bedroom",
+      "baseUrl": "http://mainbedroom.local",
+      "buttons": [
+        { "name": "Fan on/off", "id": "fan_on_off" },
+        { "name": "Light on/off", "id": "light_on_off" },
+        { "name": "Brighter lights", "id": "brighter_lights" },
+        { "name": "Lower lights", "id": "lower_lights" },
+        { "name": "Fan speed 1", "id": "fan_speed_1" },
+        { "name": "Fan speed 2", "id": "fan_speed_2" },
+        { "name": "Fan speed 3", "id": "fan_speed_3" }
+      ]
+    }
+  ]
+}
+```
+
+Use your device’s hostname (e.g. `mainbedroom.local`) or IP as `baseUrl`. Each entry in `buttons` becomes a switch in HomeKit; turning it on triggers that button on the device.
+
+### Hold to repeat (brightness, fan speed, etc.)
+
+For buttons you want to "hold" (e.g. brighter / dimmer, fan speed), the switch **stays on** while you hold it and sends repeated presses at an interval:
+
+- **Platform:** `repeatIntervalMs` (default `250`) – how often (ms) to send a press while the switch is on. Set to `0` for single-press only.
+- **Per button:** `repeatIntervalMs` – override (e.g. `0` for toggles, `200` for brightness).
+
+Turn the switch **on** to start (one press + repeat); turn it **off** to stop. With `repeatIntervalMs: 0`, a quick tap sends one press and the switch resets to off.
+
+---
+
+## Testing on another server (remote Homebridge)
+
+To run this plugin on a different machine than where you develop:
+
+### 1. Build and pack on your dev machine
+
+```bash
+cd /path/to/homebridge-better-http-remote
+npm run build
+npm pack
+```
+
+This creates a file like `homebridge-better-http-remote-1.0.0.tgz`.
+
+### 2. Copy the tarball to the server
+
+Use `scp`, SFTP, or any copy method, e.g.:
+
+```bash
+scp homebridge-better-http-remote-1.0.0.tgz user@your-homebridge-server:~/
+```
+
+### 3. Install the plugin on the server
+
+SSH into the server, then install the plugin **globally** (so the global Homebridge can load it):
+
+```bash
+ssh user@your-homebridge-server
+sudo npm install -g ./homebridge-better-http-remote-1.0.0.tgz
+```
+
+If your Homebridge runs as a user (e.g. `hb-ui` or your own user) and uses a global Homebridge:
+
+```bash
+npm install -g ./homebridge-better-http-remote-1.0.0.tgz
+```
+
+(Use the same user that runs Homebridge, and omit `sudo` if you use a user-level Node/npm.)
+
+### 4. Add the platform to Homebridge config
+
+On the server, edit the Homebridge config (often `~/.homebridge/config.json` or under `/var/lib/homebridge` if you use the service). Add a platform block like:
+
+```json
+{
+  "platform": "BetterHttpRemote",
+  "name": "HTTP Remote",
+  "devices": [
+    {
+      "name": "Main Bedroom",
+      "baseUrl": "http://mainbedroom.local",
+      "buttons": [
+        { "name": "Fan on/off", "id": "fan_on_off" },
+        { "name": "Brighter lights", "id": "brighter_lights" }
+      ]
+    }
+  ]
+}
+```
+
+Use the server’s hostname or the ESPHome device’s IP if `mainbedroom.local` doesn’t resolve from the server (e.g. `http://192.168.1.20`).
+
+### 5. Restart Homebridge
+
+Restart the Homebridge process (service, Docker, or `homebridge -D`), then in the Home app the new switches should appear.
+
+**Tip:** After code changes, run `npm run build` and `npm pack` again, copy the new `.tgz` to the server, and re-run the install command (same path); then restart Homebridge to pick up the new build.
+
+---
+
+<span align="center">
+
+# Homebridge Platform Plugin Template (development)
 
 </span>
 
@@ -14,6 +155,7 @@
 > **Homebridge v2.0 Information**
 >
 > This template currently has a
+>
 > - `package.json -> engines.homebridge` value of `"^1.8.0 || ^2.0.0-beta.0"`
 > - `package.json -> devDependencies.homebridge` value of `"^2.0.0-beta.0"`
 >
@@ -29,7 +171,7 @@ This template should be used in conjunction with the [developer documentation](h
 
 ### Clone As Template
 
-Click the link below to create a new GitHub Repository using this template, or click the *Use This Template* button above.
+Click the link below to create a new GitHub Repository using this template, or click the _Use This Template_ button above.
 
 <span align="center">
 
@@ -101,6 +243,7 @@ homebridge -D
 ### Watch For Changes and Build Automatically
 
 If you want to have your code compile automatically as you make changes, and restart Homebridge automatically between changes, you first need to add your plugin as a platform in `./test/hbConfig/config.json`:
+
 ```
 {
 ...
@@ -168,7 +311,7 @@ If you are publishing a scoped plugin, i.e. `@username/homebridge-xxx` you will 
 
 #### Publishing Beta Versions
 
-You can publish *beta* versions of your plugin for other users to test before you release it to everyone.
+You can publish _beta_ versions of your plugin for other users to test before you release it to everyone.
 
 ```shell
 # create a new pre-release version (eg. 2.1.0-beta.1)
@@ -178,7 +321,7 @@ npm version prepatch --preid beta
 npm publish --tag beta
 ```
 
-Users can then install the  *beta* version by appending `@beta` to the install command, for example:
+Users can then install the _beta_ version by appending `@beta` to the install command, for example:
 
 ```shell
 sudo npm install -g homebridge-example-plugin@beta
