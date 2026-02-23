@@ -5,10 +5,16 @@ import { discoverESPHomeDevicesOnNetwork } from './esphomeDeviceDiscovery.js';
 import { RemoteButtonAccessory } from './platformAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
+export type ControlType = 'button' | 'switch';
+
 export interface ESPHomeButton {
   name: string;
   id: string;
   repeatIntervalMs?: number;
+  /** "button" = momentary (fire-and-forget, single press); "switch" = toggle with optional repeat. */
+  controlType?: ControlType;
+  /** Override fire-and-forget for this button (default depends on controlType). */
+  fireAndForget?: boolean;
 }
 
 export interface ESPHomeDevice {
@@ -17,6 +23,8 @@ export interface ESPHomeDevice {
   /** When true, buttons are discovered from the device's /events stream; buttons array is optional. */
   discoverButtons?: boolean;
   buttons?: ESPHomeButton[];
+  /** Default control type for buttons on this device. */
+  controlType?: ControlType;
 }
 
 export interface RemoteButtonConfig {
@@ -27,6 +35,8 @@ export interface RemoteButtonConfig {
   uniqueId: string;
   /** Repeat interval in ms while switch is held; 0 = single press only. */
   repeatIntervalMs: number;
+  /** When true, press triggers once and switch resets to Off; when false, switch stays On until turned Off. */
+  fireAndForget: boolean;
 }
 
 /** Context for a single "remote" accessory (one per device, many buttons). */
@@ -42,6 +52,8 @@ export interface BetterHttpRemotePlatformConfig extends PlatformConfig {
   repeatIntervalMs?: number;
   /** When true (default), switches reset to Off after a press and turning Off does nothing. When false, switch stays On until turned Off. */
   fireAndForget?: boolean;
+  /** "button" = momentary (fire-and-forget, single press); "switch" = toggle with optional repeat. Default "button". */
+  controlType?: ControlType;
   /** When true, discover all ESPHome devices on the network via mDNS; devices array is optional. */
   discoverDevicesOnNetwork?: boolean;
   devices?: ESPHomeDevice[];
@@ -77,7 +89,14 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
   }
 
   async discoverDevices() {
-    let devicesToUse: Array<{ name: string; baseUrl: string; discoverButtons?: boolean; buttons?: ESPHomeButton[] }> = [];
+    type DeviceEntry = {
+      name: string;
+      baseUrl: string;
+      discoverButtons?: boolean;
+      buttons?: ESPHomeButton[];
+      controlType?: ControlType;
+    };
+    let devicesToUse: DeviceEntry[] = [];
 
     if (this.config.discoverDevicesOnNetwork) {
       this.log.info('Discovering ESPHome devices on network (mDNS)...');
@@ -103,6 +122,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
             baseUrl: device.baseUrl.replace(/\/$/, ''),
             discoverButtons: device.discoverButtons,
             buttons: device.buttons,
+            controlType: device.controlType,
           });
         }
       }
@@ -114,11 +134,14 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     }
 
     const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
+    const platformFireAndForget = typeof this.config.fireAndForget === 'boolean' ? this.config.fireAndForget : true;
+    const platformControlType = this.config.controlType === 'switch' || this.config.controlType === 'button' ? this.config.controlType : 'button';
     const deviceContexts: RemoteDeviceContext[] = [];
 
     for (const device of devicesToUse) {
       const baseUrl = device.baseUrl.replace(/\/$/, '');
       const deviceName = device.name || baseUrl;
+      const deviceControlType = device.controlType === 'switch' || device.controlType === 'button' ? device.controlType : platformControlType;
       let buttons: ESPHomeButton[];
 
       if (device.discoverButtons) {
@@ -142,7 +165,10 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
         if (!btn.id || !btn.name) {
           continue;
         }
-        const repeatIntervalMs = btn.repeatIntervalMs !== undefined ? Math.max(0, Number(btn.repeatIntervalMs)) : platformRepeat;
+        const controlType: ControlType = btn.controlType === 'switch' || btn.controlType === 'button' ? btn.controlType : deviceControlType;
+        const isButton = controlType === 'button';
+        const repeatIntervalMs = btn.repeatIntervalMs !== undefined ? Math.max(0, Number(btn.repeatIntervalMs)) : isButton ? 0 : platformRepeat;
+        const fireAndForget = typeof btn.fireAndForget === 'boolean' ? btn.fireAndForget : isButton ? true : platformFireAndForget;
         buttonConfigs.push({
           deviceName,
           baseUrl,
@@ -150,6 +176,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
           buttonId: btn.id,
           uniqueId: `esphome:${baseUrl}:button:${btn.id}`,
           repeatIntervalMs,
+          fireAndForget,
         });
       }
       if (buttonConfigs.length > 0) {

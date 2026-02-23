@@ -92,9 +92,39 @@ Set **`discoverButtons`: true** on a device and omit **`buttons`** to have the p
 
 You can still set **`buttons`** manually for full control; discovery is for convenience when you want all buttons with default settings.
 
+### Button vs switch (control type)
+
+HomeKit only exposes **Switch** for “tap in app → trigger,” so both styles use a Switch in the Home app. You choose the **behavior**:
+
+- **`controlType: "button"`** (default) – **Momentary:** fire-and-forget, single press, switch resets to Off. Good for toggles and one-shot actions.
+- **`controlType: "switch"`** – **Toggle:** switch can stay On, optional hold-to-repeat; turning Off does not send a second press.
+
+You can set **`controlType`** at the **platform** (default for all), **per device**, or **per button**. Example: one button as switch for hold-to-repeat brightness, rest as momentary:
+
+```json
+{
+  "platform": "BetterHttpRemote",
+  "name": "ESPHome Buttons",
+  "controlType": "button",
+  "devices": [
+    {
+      "name": "Main Bedroom",
+      "baseUrl": "http://mainbedroom.local",
+      "buttons": [
+        { "name": "Fan on/off", "id": "fan_on_off" },
+        { "name": "Brighter lights", "id": "brighter_lights", "controlType": "switch", "repeatIntervalMs": 200 },
+        { "name": "Lower lights", "id": "lower_lights" }
+      ]
+    }
+  ]
+}
+```
+
+With **discoverButtons: true**, all discovered buttons use the platform/device **controlType** default. When you list **buttons** manually (no discovery), you can set **controlType** and **repeatIntervalMs** per button as in the example.
+
 ### Fire and forget (default: on)
 
-By default, each switch **resets to Off** after a press and turning it **Off** does nothing (no second trigger). Set **`fireAndForget`: false** in the platform config if you prefer the switch to **stay On** until you turn it Off yourself (turning Off still does not send a second press).
+By default, each switch **resets to Off** after a press and turning it **Off** does nothing (no second trigger). Set **`fireAndForget`: false** in the platform config if you prefer the switch to **stay On** until you turn it Off yourself (turning Off still does not send a second press). When using **`controlType: "button"`**, fire-and-forget is always on for that control unless you override with **`fireAndForget`** per button.
 
 ### Hold to repeat (brightness, fan speed, etc.)
 

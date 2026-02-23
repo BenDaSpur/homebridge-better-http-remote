@@ -1,18 +1,16 @@
 import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
 
-import type { BetterHttpRemotePlatform, BetterHttpRemotePlatformConfig, RemoteButtonConfig, RemoteDeviceContext } from './platform.js';
+import type { BetterHttpRemotePlatform, RemoteButtonConfig, RemoteDeviceContext } from './platform.js';
 
 /**
  * One "remote" accessory per device: multiple Switch services (one per button).
- * When fireAndForget: only "On" triggers a press; "Off" does nothing. Single press resets to Off.
- * When !fireAndForget: switch stays On until user turns Off (no second press when turning Off).
+ * Each button has its own fireAndForget (from controlType "button" vs "switch" or explicit override).
  */
 export class RemoteButtonAccessory {
   /** Per-button repeat timer, keyed by button uniqueId. */
   private readonly repeatTimers = new Map<string, ReturnType<typeof setInterval>>();
   /** Per-button on state when fireAndForget is false. */
   private readonly onState = new Map<string, boolean>();
-  private readonly fireAndForget: boolean = true;
 
   constructor(
     private readonly platform: BetterHttpRemotePlatform,
@@ -23,9 +21,6 @@ export class RemoteButtonAccessory {
       platform.log.warn('Accessory missing device config:', accessory.displayName);
       return;
     }
-
-    const config = this.platform.config as BetterHttpRemotePlatformConfig;
-    this.fireAndForget = typeof config.fireAndForget === 'boolean' ? config.fireAndForget : true;
 
     this.accessory
       .getService(this.platform.Service.AccessoryInformation)!
@@ -41,19 +36,21 @@ export class RemoteButtonAccessory {
       const svc =
         this.accessory.getServiceById(this.platform.Service.Switch, subtype) ||
         this.accessory.addService(this.platform.Service.Switch, button.buttonName, subtype);
-      svc.setCharacteristic(this.platform.Characteristic.Name, button.buttonName);
+      // Force display name so each button shows its label in Home (not the accessory name).
+      (svc as Service & { displayName?: string }).displayName = button.buttonName;
+      svc.updateCharacteristic(this.platform.Characteristic.Name, button.buttonName);
       svc
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet((value) => this.setOn(button, svc, value))
-        .onGet(() => this.getOn(button.uniqueId));
+        .onGet(() => this.getOn(button));
     }
   }
 
-  private getOn(buttonUniqueId: string): boolean {
-    if (this.fireAndForget) {
+  private getOn(button: RemoteButtonConfig): boolean {
+    if (button.fireAndForget) {
       return false;
     }
-    return this.onState.get(buttonUniqueId) ?? false;
+    return this.onState.get(button.uniqueId) ?? false;
   }
 
   private stopRepeat(buttonUniqueId: string) {
@@ -83,7 +80,7 @@ export class RemoteButtonAccessory {
   private async setOn(button: RemoteButtonConfig, service: Service, value: CharacteristicValue) {
     if (value === true) {
       this.stopRepeat(button.uniqueId);
-      if (!this.fireAndForget) {
+      if (!button.fireAndForget) {
         this.onState.set(button.uniqueId, true);
       }
       await this.firePress(button);
@@ -93,12 +90,12 @@ export class RemoteButtonAccessory {
           button.uniqueId,
           setInterval(() => this.firePress(button), button.repeatIntervalMs),
         );
-      } else if (this.fireAndForget) {
+      } else if (button.fireAndForget) {
         setImmediate(() => service.updateCharacteristic(this.platform.Characteristic.On, false));
       }
     } else {
       this.stopRepeat(button.uniqueId);
-      if (!this.fireAndForget) {
+      if (!button.fireAndForget) {
         this.onState.set(button.uniqueId, false);
       }
       service.updateCharacteristic(this.platform.Characteristic.On, false);

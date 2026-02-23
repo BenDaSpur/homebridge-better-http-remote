@@ -27,6 +27,14 @@
         "default": true,
         "description": "If true (default), each switch resets to Off after a press and turning Off does nothing. If false, the switch stays On until you turn it Off (no second press when turning Off)."
       },
+      "controlType": {
+        "type": "string",
+        "title": "Control type",
+        "default": "button",
+        "enum": ["button", "switch"],
+        "enumNames": ["Button (momentary)", "Switch (toggle)"],
+        "description": "Button = momentary (fire-and-forget, single press). Switch = toggle (can stay on, optional hold-to-repeat). Can also be set per device or per button."
+      },
       "discoverDevicesOnNetwork": {
         "type": "boolean",
         "title": "Discover devices on network",
@@ -58,6 +66,14 @@
               "default": false,
               "description": "If true, buttons are discovered from the device at startup (no need to list them manually)."
             },
+            "controlType": {
+              "type": "string",
+              "title": "Control type (this device)",
+              "default": "button",
+              "enum": ["button", "switch"],
+              "enumNames": ["Button (momentary)", "Switch (toggle)"],
+              "description": "Override for buttons on this device."
+            },
             "buttons": {
               "type": "array",
               "title": "Buttons",
@@ -82,6 +98,13 @@
                     "title": "Repeat interval (ms)",
                     "minimum": 0,
                     "description": "Override for this button. 0 = single press only; e.g. 200 = hold to repeat every 200ms."
+                  },
+                  "controlType": {
+                    "type": "string",
+                    "title": "Control type",
+                    "enum": ["button", "switch"],
+                    "enumNames": ["Button (momentary)", "Switch (toggle)"],
+                    "description": "Button = momentary; Switch = toggle with optional repeat."
                   }
                 }
               }
