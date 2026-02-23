@@ -10,7 +10,7 @@
 
 </span>
 
-Expose **ESPHome device buttons** as HomeKit switches in a **single “remote” per device**. In the Home app you get one accessory per device (e.g. “Main Bedroom Remote”) with all buttons inside it. **Fire-and-forget:** only turning a switch **On** triggers the button; turning it **Off** does nothing (no second press). Single tap = one press, then the switch shows Off again; optional hold-to-repeat for brightness/fan. No state is read back from the device.
+Expose **ESPHome device buttons** as HomeKit switches. By default **one accessory per button** so each shows its correct name in Home (e.g. “Fan on/off (mainbedroom)”). Optionally use **one “remote” per device** (grouped) — the Home app may then show the same name for every control. **Fire-and-forget:** only turning a switch **On** triggers the button; turning it **Off** does nothing. No state is read back from the device.
 
 ---
 
@@ -91,6 +91,13 @@ Set **`discoverButtons`: true** on a device and omit **`buttons`** to have the p
 ```
 
 You can still set **`buttons`** manually for full control; discovery is for convenience when you want all buttons with default settings.
+
+### One accessory per button vs one remote per device
+
+- **Default (`singleRemotePerDevice`: false):** One HomeKit accessory per button. Each shows its **correct name** in the Home app (e.g. “Fan on/off (mainbedroom)”, “Brighter lights (mainbedroom)”). More tiles, but names are right.
+- **`singleRemotePerDevice`: true:** One “remote” accessory per device with all buttons inside. The Home app often shows the **accessory name** for every control (“mainbedroom Remote”), so labels are duplicated. Use this only if you prefer the grouped view and are okay renaming in Home or ignoring the labels.
+
+Set **`singleRemotePerDevice`: true** in the platform config if you want the grouped remote; leave it false (default) to get correct names.
 
 ### Button vs switch (control type)
 

@@ -35,6 +35,12 @@
         "enumNames": ["Button (momentary)", "Switch (toggle)"],
         "description": "Button = momentary (fire-and-forget, single press). Switch = toggle (can stay on, optional hold-to-repeat). Can also be set per device or per button."
       },
+      "singleRemotePerDevice": {
+        "type": "boolean",
+        "title": "Single remote per device",
+        "default": false,
+        "description": "If false (default), one accessory per button so each shows its correct name in Home (e.g. Fan on/off (mainbedroom)). If true, one grouped remote per device but the Home app may show the same name for every control."
+      },
       "discoverDevicesOnNetwork": {
         "type": "boolean",
         "title": "Discover devices on network",

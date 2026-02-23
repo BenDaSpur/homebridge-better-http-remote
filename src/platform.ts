@@ -54,6 +54,8 @@ export interface BetterHttpRemotePlatformConfig extends PlatformConfig {
   fireAndForget?: boolean;
   /** "button" = momentary (fire-and-forget, single press); "switch" = toggle with optional repeat. Default "button". */
   controlType?: ControlType;
+  /** When false (default), one accessory per button so each shows its name in Home. When true, one "remote" per device (grouped) but Home may show the same name for each control. */
+  singleRemotePerDevice?: boolean;
   /** When true, discover all ESPHome devices on the network via mDNS; devices array is optional. */
   discoverDevicesOnNetwork?: boolean;
   devices?: ESPHomeDevice[];
@@ -136,7 +138,9 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
     const platformFireAndForget = typeof this.config.fireAndForget === 'boolean' ? this.config.fireAndForget : true;
     const platformControlType = this.config.controlType === 'switch' || this.config.controlType === 'button' ? this.config.controlType : 'button';
+    const singleRemotePerDevice = typeof this.config.singleRemotePerDevice === 'boolean' ? this.config.singleRemotePerDevice : false;
     const deviceContexts: RemoteDeviceContext[] = [];
+    const singleButtonConfigs: RemoteButtonConfig[] = [];
 
     for (const device of devicesToUse) {
       const baseUrl = device.baseUrl.replace(/\/$/, '');
@@ -180,28 +184,56 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
         });
       }
       if (buttonConfigs.length > 0) {
-        deviceContexts.push({ deviceName, baseUrl, buttons: buttonConfigs });
+        if (singleRemotePerDevice) {
+          deviceContexts.push({ deviceName, baseUrl, buttons: buttonConfigs });
+        } else {
+          singleButtonConfigs.push(...buttonConfigs);
+        }
       }
     }
 
-    for (const ctx of deviceContexts) {
-      const uuid = this.api.hap.uuid.generate(`esphome:${ctx.baseUrl}:remote`);
-      const displayName = `${ctx.deviceName} Remote`;
-      const existingAccessory = this.accessories.get(uuid);
+    if (singleRemotePerDevice) {
+      for (const ctx of deviceContexts) {
+        const uuid = this.api.hap.uuid.generate(`esphome:${ctx.baseUrl}:remote`);
+        const displayName = `${ctx.deviceName} Remote`;
+        const existingAccessory = this.accessories.get(uuid);
 
-      if (existingAccessory) {
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-        existingAccessory.context.device = ctx;
-        new RemoteButtonAccessory(this, existingAccessory);
-      } else {
-        this.log.info('Adding new accessory:', displayName);
-        const accessory = new this.api.platformAccessory(displayName, uuid);
-        accessory.context.device = ctx;
-        new RemoteButtonAccessory(this, accessory);
-        this.accessories.set(uuid, accessory);
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        if (existingAccessory) {
+          this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
+          existingAccessory.context.device = ctx;
+          existingAccessory.context.button = undefined;
+          new RemoteButtonAccessory(this, existingAccessory);
+        } else {
+          this.log.info('Adding new accessory:', displayName);
+          const accessory = new this.api.platformAccessory(displayName, uuid);
+          accessory.context.device = ctx;
+          new RemoteButtonAccessory(this, accessory);
+          this.accessories.set(uuid, accessory);
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        }
+        this.discoveredCacheUUIDs.push(uuid);
       }
-      this.discoveredCacheUUIDs.push(uuid);
+    } else {
+      for (const buttonConfig of singleButtonConfigs) {
+        const uuid = this.api.hap.uuid.generate(buttonConfig.uniqueId);
+        const displayName = `${buttonConfig.buttonName} (${buttonConfig.deviceName})`;
+        const existingAccessory = this.accessories.get(uuid);
+
+        if (existingAccessory) {
+          this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
+          existingAccessory.context.button = buttonConfig;
+          existingAccessory.context.device = undefined;
+          new RemoteButtonAccessory(this, existingAccessory);
+        } else {
+          this.log.info('Adding new accessory:', displayName);
+          const accessory = new this.api.platformAccessory(displayName, uuid);
+          accessory.context.button = buttonConfig;
+          new RemoteButtonAccessory(this, accessory);
+          this.accessories.set(uuid, accessory);
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        }
+        this.discoveredCacheUUIDs.push(uuid);
+      }
     }
 
     for (const [uuid, accessory] of this.accessories) {

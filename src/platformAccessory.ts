@@ -3,8 +3,8 @@ import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge
 import type { BetterHttpRemotePlatform, RemoteButtonConfig, RemoteDeviceContext } from './platform.js';
 
 /**
- * One "remote" accessory per device: multiple Switch services (one per button).
- * Each button has its own fireAndForget (from controlType "button" vs "switch" or explicit override).
+ * Handles either (a) one "remote" accessory with multiple Switch services, or (b) one accessory per button with a single Switch.
+ * When context.device is set: multi-service remote. When context.button is set: single button (correct name in Home).
  */
 export class RemoteButtonAccessory {
   /** Per-button repeat timer, keyed by button uniqueId. */
@@ -17,6 +17,12 @@ export class RemoteButtonAccessory {
     private readonly accessory: PlatformAccessory,
   ) {
     const device = accessory.context.device as RemoteDeviceContext | undefined;
+    const singleButton = accessory.context.button as RemoteButtonConfig | undefined;
+
+    if (singleButton?.baseUrl && singleButton?.buttonId) {
+      this.setupSingleButton(singleButton);
+      return;
+    }
     if (!device?.baseUrl || !Array.isArray(device.buttons) || device.buttons.length === 0) {
       platform.log.warn('Accessory missing device config:', accessory.displayName);
       return;
@@ -36,7 +42,6 @@ export class RemoteButtonAccessory {
       const svc =
         this.accessory.getServiceById(this.platform.Service.Switch, subtype) ||
         this.accessory.addService(this.platform.Service.Switch, button.buttonName, subtype);
-      // Force display name so each button shows its label in Home (not the accessory name).
       (svc as Service & { displayName?: string }).displayName = button.buttonName;
       svc.updateCharacteristic(this.platform.Characteristic.Name, button.buttonName);
       svc
@@ -44,6 +49,20 @@ export class RemoteButtonAccessory {
         .onSet((value) => this.setOn(button, svc, value))
         .onGet(() => this.getOn(button));
     }
+  }
+
+  private setupSingleButton(button: RemoteButtonConfig) {
+    this.accessory
+      .getService(this.platform.Service.AccessoryInformation)!
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'ESPHome')
+      .setCharacteristic(this.platform.Characteristic.Model, 'ESPHome Button')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, button.uniqueId);
+
+    const svc = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch, button.buttonName);
+    svc
+      .getCharacteristic(this.platform.Characteristic.On)
+      .onSet((value) => this.setOn(button, svc, value))
+      .onGet(() => this.getOn(button));
   }
 
   private getOn(button: RemoteButtonConfig): boolean {
