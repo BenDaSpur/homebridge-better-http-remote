@@ -1,7 +1,8 @@
 /**
  * Discover button entities from an ESPHome device by connecting to its /events
  * Server-Sent Events stream. The device sends state events with id "button/..."
- * and optional "name". We collect these to build the list of buttons.
+ * or "button-..." and optional "name". We use the entity name as the button id
+ * when present so the REST URL matches the web UI (e.g. "Fan on⁄off").
  */
 
 const DISCOVERY_TIMEOUT_MS = 8000;
@@ -13,13 +14,15 @@ export interface DiscoveredButton {
 }
 
 /**
- * Fetch the /events SSE stream, parse events whose data.id starts with "button/",
- * and return the list of buttons (id = part after "button/", name = data.name or id).
- * Resolves after DISCOVERY_TIMEOUT_MS or DISCOVERY_IDLE_MS with no new data.
+ * Fetch the /events SSE stream, parse button state events, and return the list
+ * of buttons. Button id is the entity name when available (so POST
+ * /button/{encodeURIComponent(id)}/press matches the web UI); otherwise the
+ * object_id from legacy id or name_id. Resolves after DISCOVERY_TIMEOUT_MS or
+ * DISCOVERY_IDLE_MS with no new data.
  */
 export async function discoverButtonsFromDevice(baseUrl: string): Promise<DiscoveredButton[]> {
   const url = `${baseUrl.replace(/\/$/, '')}/events`;
-  const seen = new Map<string, string>(); // id -> name
+  const seen = new Map<string, DiscoveredButton>(); // canonical key -> { id, name }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DISCOVERY_TIMEOUT_MS);
@@ -35,7 +38,7 @@ export async function discoverButtonsFromDevice(baseUrl: string): Promise<Discov
     if (idleTimer) {
       clearTimeout(idleTimer);
     }
-    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(seen.values());
   };
 
   try {
@@ -72,25 +75,39 @@ export async function discoverButtonsFromDevice(baseUrl: string): Promise<Discov
       buffer = parts.pop() ?? '';
 
       for (const block of parts) {
-        const line = block.split(/\n/).find((l) => l.startsWith('data:'));
-        if (!line) {
-          continue;
-        }
-        const jsonStr = line.slice(5).trim();
+        const dataLines = block
+          .split(/\n/)
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.slice(5).trim());
+        const jsonStr = dataLines.join('\n');
         if (jsonStr === '[DONE]' || !jsonStr) {
           continue;
         }
         try {
-          const data = JSON.parse(jsonStr) as { id?: string; name?: string };
-          const id = data?.id;
-          if (typeof id === 'string' && id.startsWith('button/')) {
-            const buttonId = id.slice(7);
-            const name = typeof data.name === 'string' ? data.name : buttonId;
-            if (buttonId && !seen.has(buttonId)) {
-              seen.set(buttonId, name);
-            }
-            resetIdle();
+          const data = JSON.parse(jsonStr) as { id?: string; name_id?: string; name?: string };
+          const rawId = data?.id ?? data?.name_id;
+          if (typeof rawId !== 'string') {
+            continue;
           }
+          let objectId: string | null = null;
+          if (rawId.startsWith('button/')) {
+            objectId = rawId.slice(7);
+          } else if (rawId.startsWith('button-')) {
+            objectId = rawId.slice(7);
+          }
+          if (!objectId) {
+            continue;
+          }
+          const canonicalKey = rawId;
+          if (seen.has(canonicalKey)) {
+            continue;
+          }
+          // Use entity name as button id when present so REST URL matches web UI
+          // (e.g. "Fan on⁄off" -> /button/Fan%20on%E2%81%84off/press).
+          const restId = typeof data.name === 'string' ? data.name : objectId;
+          const displayName = typeof data.name === 'string' ? data.name : objectId;
+          seen.set(canonicalKey, { id: restId, name: displayName });
+          resetIdle();
         } catch {
           // ignore parse errors
         }
