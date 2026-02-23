@@ -5,13 +5,15 @@
  * when present so the REST URL matches the web UI (e.g. "Fan on⁄off").
  */
 
-const DISCOVERY_TIMEOUT_MS = 8000;
-const DISCOVERY_IDLE_MS = 1500;
+const DISCOVERY_TIMEOUT_MS = 15000;
+const DISCOVERY_IDLE_MS = 3000;
 
 export interface DiscoveredButton {
   id: string;
   name: string;
 }
+
+export type DiscoveryLogger = Pick<Console, 'debug' | 'warn'>;
 
 /**
  * Fetch the /events SSE stream, parse button state events, and return the list
@@ -20,7 +22,7 @@ export interface DiscoveredButton {
  * object_id from legacy id or name_id. Resolves after DISCOVERY_TIMEOUT_MS or
  * DISCOVERY_IDLE_MS with no new data.
  */
-export async function discoverButtonsFromDevice(baseUrl: string): Promise<DiscoveredButton[]> {
+export async function discoverButtonsFromDevice(baseUrl: string, log?: DiscoveryLogger): Promise<DiscoveredButton[]> {
   const url = `${baseUrl.replace(/\/$/, '')}/events`;
   const seen = new Map<string, DiscoveredButton>(); // canonical key -> { id, name }
 
@@ -49,6 +51,7 @@ export async function discoverButtonsFromDevice(baseUrl: string): Promise<Discov
     });
 
     if (!res.ok || !res.body) {
+      log?.debug?.('Discovery: /events response not ok or no body', res.status);
       return finish();
     }
 
@@ -71,12 +74,14 @@ export async function discoverButtonsFromDevice(baseUrl: string): Promise<Discov
         break;
       }
       buffer += decoder.decode(value, { stream: true });
+      // Normalize CRLF so we split events correctly (ESPHome may send \r\n)
+      buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       const parts = buffer.split(/\n\n+/);
       buffer = parts.pop() ?? '';
 
       for (const block of parts) {
         const dataLines = block
-          .split(/\n/)
+          .split('\n')
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trim());
         const jsonStr = dataLines.join('\n');
@@ -113,8 +118,8 @@ export async function discoverButtonsFromDevice(baseUrl: string): Promise<Discov
         }
       }
     }
-  } catch {
-    // fetch error or abort
+  } catch (err) {
+    log?.debug?.('Discovery: stream ended or failed', err instanceof Error ? err.message : String(err));
   }
 
   return finish();
