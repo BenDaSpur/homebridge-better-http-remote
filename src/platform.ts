@@ -1,12 +1,4 @@
-import type {
-  API,
-  Characteristic,
-  DynamicPlatformPlugin,
-  Logging,
-  PlatformAccessory,
-  PlatformConfig,
-  Service,
-} from 'homebridge';
+import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 
 import { RemoteButtonAccessory } from './platformAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
@@ -53,7 +45,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
   constructor(
     public readonly log: Logging,
     public readonly config: BetterHttpRemotePlatformConfig,
-    public readonly api: API
+    public readonly api: API,
   ) {
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
@@ -78,19 +70,17 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
 
     const buttonConfigs: RemoteButtonConfig[] = [];
     for (const device of devices) {
-      if (!device.baseUrl || !Array.isArray(device.buttons)) continue;
+      if (!device.baseUrl || !Array.isArray(device.buttons)) {
+        continue;
+      }
       const baseUrl = device.baseUrl.replace(/\/$/, '');
       const deviceName = device.name || baseUrl;
-      const platformRepeat =
-        typeof this.config.repeatIntervalMs === 'number'
-          ? Math.max(0, this.config.repeatIntervalMs)
-          : 250;
+      const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
       for (const btn of device.buttons) {
-        if (!btn.id || !btn.name) continue;
-        const repeatIntervalMs =
-          btn.repeatIntervalMs !== undefined
-            ? Math.max(0, Number(btn.repeatIntervalMs))
-            : platformRepeat;
+        if (!btn.id || !btn.name) {
+          continue;
+        }
+        const repeatIntervalMs = btn.repeatIntervalMs !== undefined ? Math.max(0, Number(btn.repeatIntervalMs)) : platformRepeat;
         buttonConfigs.push({
           deviceName,
           baseUrl,
