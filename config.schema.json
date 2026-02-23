@@ -21,6 +21,12 @@
         "minimum": 0,
         "description": "While the switch is held on, send a button press every this many ms (e.g. 200–300 for brightness/fan). Set to 0 for single press only."
       },
+      "fireAndForget": {
+        "type": "boolean",
+        "title": "Fire and forget",
+        "default": true,
+        "description": "If true (default), each switch resets to Off after a press and turning Off does nothing. If false, the switch stays On until you turn it Off (no second press when turning Off)."
+      },
       "discoverDevicesOnNetwork": {
         "type": "boolean",
         "title": "Discover devices on network",

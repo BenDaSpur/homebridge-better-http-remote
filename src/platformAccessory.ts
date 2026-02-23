@@ -1,50 +1,70 @@
 import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
 
-import type { BetterHttpRemotePlatform, RemoteButtonConfig } from './platform.js';
+import type { BetterHttpRemotePlatform, BetterHttpRemotePlatformConfig, RemoteButtonConfig, RemoteDeviceContext } from './platform.js';
 
 /**
- * One accessory per ESPHome button. Exposes a Switch service:
- * - Turn ON: send one press immediately, then while the switch stays on, send a press every repeatIntervalMs (hold-to-repeat for brightness/fan).
- * - Turn OFF: stop repeating.
- * - repeatIntervalMs 0 = single press only (no repeat), then switch resets to off.
+ * One "remote" accessory per device: multiple Switch services (one per button).
+ * When fireAndForget: only "On" triggers a press; "Off" does nothing. Single press resets to Off.
+ * When !fireAndForget: switch stays On until user turns Off (no second press when turning Off).
  */
 export class RemoteButtonAccessory {
-  private service!: Service;
-  private repeatTimer: ReturnType<typeof setInterval> | null = null;
-  private isOn = false;
+  /** Per-button repeat timer, keyed by button uniqueId. */
+  private readonly repeatTimers = new Map<string, ReturnType<typeof setInterval>>();
+  /** Per-button on state when fireAndForget is false. */
+  private readonly onState = new Map<string, boolean>();
+  private readonly fireAndForget: boolean = true;
 
   constructor(
     private readonly platform: BetterHttpRemotePlatform,
     private readonly accessory: PlatformAccessory,
   ) {
-    const button = accessory.context.button as RemoteButtonConfig;
-    if (!button?.baseUrl || !button?.buttonId) {
-      platform.log.warn('Accessory missing button config:', accessory.displayName);
+    const device = accessory.context.device as RemoteDeviceContext | undefined;
+    if (!device?.baseUrl || !Array.isArray(device.buttons) || device.buttons.length === 0) {
+      platform.log.warn('Accessory missing device config:', accessory.displayName);
       return;
     }
+
+    const config = this.platform.config as BetterHttpRemotePlatformConfig;
+    this.fireAndForget = typeof config.fireAndForget === 'boolean' ? config.fireAndForget : true;
 
     this.accessory
       .getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'ESPHome')
-      .setCharacteristic(this.platform.Characteristic.Model, 'ESPHome Button')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, button.uniqueId);
+      .setCharacteristic(this.platform.Characteristic.Model, 'ESPHome Remote')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, `esphome:${device.baseUrl}`);
 
-    this.service = this.accessory.getService(this.platform.Service.Switch) || this.accessory.addService(this.platform.Service.Switch);
-    this.service.setCharacteristic(this.platform.Characteristic.Name, button.buttonName);
-
-    this.service.getCharacteristic(this.platform.Characteristic.On).onSet(this.setOn.bind(this)).onGet(this.getOn.bind(this));
-  }
-
-  private stopRepeat() {
-    if (this.repeatTimer !== null) {
-      clearInterval(this.repeatTimer);
-      this.repeatTimer = null;
+    for (const button of device.buttons) {
+      if (!button.baseUrl || !button.buttonId) {
+        continue;
+      }
+      const subtype = button.uniqueId;
+      const svc =
+        this.accessory.getServiceById(this.platform.Service.Switch, subtype) ||
+        this.accessory.addService(this.platform.Service.Switch, button.buttonName, subtype);
+      svc.setCharacteristic(this.platform.Characteristic.Name, button.buttonName);
+      svc
+        .getCharacteristic(this.platform.Characteristic.On)
+        .onSet((value) => this.setOn(button, svc, value))
+        .onGet(() => this.getOn(button.uniqueId));
     }
-    this.isOn = false;
   }
 
-  private async firePress(): Promise<void> {
-    const button = this.accessory.context.button as RemoteButtonConfig | undefined;
+  private getOn(buttonUniqueId: string): boolean {
+    if (this.fireAndForget) {
+      return false;
+    }
+    return this.onState.get(buttonUniqueId) ?? false;
+  }
+
+  private stopRepeat(buttonUniqueId: string) {
+    const t = this.repeatTimers.get(buttonUniqueId);
+    if (t) {
+      clearInterval(t);
+      this.repeatTimers.delete(buttonUniqueId);
+    }
+  }
+
+  private async firePress(button: RemoteButtonConfig): Promise<void> {
     if (!button?.baseUrl || !button?.buttonId) {
       return;
     }
@@ -60,30 +80,28 @@ export class RemoteButtonAccessory {
     }
   }
 
-  async setOn(value: CharacteristicValue) {
-    const button = this.accessory.context.button as RemoteButtonConfig | undefined;
-    if (!button?.baseUrl || !button?.buttonId) {
-      return;
-    }
-
+  private async setOn(button: RemoteButtonConfig, service: Service, value: CharacteristicValue) {
     if (value === true) {
-      this.stopRepeat();
-      this.isOn = true;
-      await this.firePress();
+      this.stopRepeat(button.uniqueId);
+      if (!this.fireAndForget) {
+        this.onState.set(button.uniqueId, true);
+      }
+      await this.firePress(button);
 
       if (button.repeatIntervalMs > 0) {
-        this.repeatTimer = setInterval(() => this.firePress(), button.repeatIntervalMs);
-      } else {
-        this.isOn = false;
-        this.service.updateCharacteristic(this.platform.Characteristic.On, false);
+        this.repeatTimers.set(
+          button.uniqueId,
+          setInterval(() => this.firePress(button), button.repeatIntervalMs),
+        );
+      } else if (this.fireAndForget) {
+        setImmediate(() => service.updateCharacteristic(this.platform.Characteristic.On, false));
       }
     } else {
-      this.stopRepeat();
-      this.service.updateCharacteristic(this.platform.Characteristic.On, false);
+      this.stopRepeat(button.uniqueId);
+      if (!this.fireAndForget) {
+        this.onState.set(button.uniqueId, false);
+      }
+      service.updateCharacteristic(this.platform.Characteristic.On, false);
     }
-  }
-
-  async getOn(): Promise<CharacteristicValue> {
-    return this.isOn;
   }
 }

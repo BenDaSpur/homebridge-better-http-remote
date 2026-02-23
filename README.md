@@ -10,7 +10,7 @@
 
 </span>
 
-Expose **ESPHome device buttons** as HomeKit switches. When you turn a switch "on" in the Home app, the plugin sends an HTTP POST to your ESPHome device’s web server to trigger that button (e.g. RF remote commands). No state is read back—each switch is a stateless trigger.
+Expose **ESPHome device buttons** as HomeKit switches in a **single “remote” per device**. In the Home app you get one accessory per device (e.g. “Main Bedroom Remote”) with all buttons inside it. **Fire-and-forget:** only turning a switch **On** triggers the button; turning it **Off** does nothing (no second press). Single tap = one press, then the switch shows Off again; optional hold-to-repeat for brightness/fan. No state is read back from the device.
 
 ---
 
@@ -62,7 +62,7 @@ Based on your `mainbedroom.yaml`, you can configure the platform like this:
 }
 ```
 
-Use your device’s hostname (e.g. `mainbedroom.local`) or IP as `baseUrl`. Each entry in `buttons` becomes a switch in HomeKit; turning it on triggers that button on the device.
+Use your device’s hostname (e.g. `mainbedroom.local`) or IP as `baseUrl`. Each device becomes **one** HomeKit accessory (e.g. “Main Bedroom Remote”) with all its buttons as toggles inside; turning a toggle on triggers that button on the device (fire-and-forget).
 
 ### Discover all ESPHome devices on the network (no baseUrl needed)
 
@@ -91,6 +91,10 @@ Set **`discoverButtons`: true** on a device and omit **`buttons`** to have the p
 ```
 
 You can still set **`buttons`** manually for full control; discovery is for convenience when you want all buttons with default settings.
+
+### Fire and forget (default: on)
+
+By default, each switch **resets to Off** after a press and turning it **Off** does nothing (no second trigger). Set **`fireAndForget`: false** in the platform config if you prefer the switch to **stay On** until you turn it Off yourself (turning Off still does not send a second press).
 
 ### Hold to repeat (brightness, fan speed, etc.)
 

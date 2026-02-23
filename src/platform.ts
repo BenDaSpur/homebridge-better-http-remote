@@ -29,10 +29,19 @@ export interface RemoteButtonConfig {
   repeatIntervalMs: number;
 }
 
+/** Context for a single "remote" accessory (one per device, many buttons). */
+export interface RemoteDeviceContext {
+  deviceName: string;
+  baseUrl: string;
+  buttons: RemoteButtonConfig[];
+}
+
 export interface BetterHttpRemotePlatformConfig extends PlatformConfig {
   name?: string;
   /** Default repeat interval (ms) while switch is held; 0 = single press only. Default 250. */
   repeatIntervalMs?: number;
+  /** When true (default), switches reset to Off after a press and turning Off does nothing. When false, switch stays On until turned Off. */
+  fireAndForget?: boolean;
   /** When true, discover all ESPHome devices on the network via mDNS; devices array is optional. */
   discoverDevicesOnNetwork?: boolean;
   devices?: ESPHomeDevice[];
@@ -104,8 +113,8 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    const buttonConfigs: RemoteButtonConfig[] = [];
     const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
+    const deviceContexts: RemoteDeviceContext[] = [];
 
     for (const device of devicesToUse) {
       const baseUrl = device.baseUrl.replace(/\/$/, '');
@@ -128,6 +137,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
         continue;
       }
 
+      const buttonConfigs: RemoteButtonConfig[] = [];
       for (const btn of buttons) {
         if (!btn.id || !btn.name) {
           continue;
@@ -142,22 +152,26 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
           repeatIntervalMs,
         });
       }
+      if (buttonConfigs.length > 0) {
+        deviceContexts.push({ deviceName, baseUrl, buttons: buttonConfigs });
+      }
     }
 
-    for (const buttonConfig of buttonConfigs) {
-      const uuid = this.api.hap.uuid.generate(buttonConfig.uniqueId);
-      const displayName = `${buttonConfig.buttonName} (${buttonConfig.deviceName})`;
+    for (const ctx of deviceContexts) {
+      const uuid = this.api.hap.uuid.generate(`esphome:${ctx.baseUrl}:remote`);
+      const displayName = `${ctx.deviceName} Remote`;
       const existingAccessory = this.accessories.get(uuid);
 
       if (existingAccessory) {
         this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-        existingAccessory.context.button = buttonConfig;
+        existingAccessory.context.device = ctx;
         new RemoteButtonAccessory(this, existingAccessory);
       } else {
         this.log.info('Adding new accessory:', displayName);
         const accessory = new this.api.platformAccessory(displayName, uuid);
-        accessory.context.button = buttonConfig;
+        accessory.context.device = ctx;
         new RemoteButtonAccessory(this, accessory);
+        this.accessories.set(uuid, accessory);
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }
       this.discoveredCacheUUIDs.push(uuid);
