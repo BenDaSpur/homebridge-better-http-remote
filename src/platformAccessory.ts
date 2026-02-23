@@ -87,7 +87,11 @@ export class RemoteButtonAccessory {
     const url = `${button.baseUrl}/button/${encodeURIComponent(button.buttonId)}/press`;
     this.platform.log.debug('Triggering button:', button.buttonName);
     try {
-      const res = await fetch(url, { method: 'POST', body: '' });
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: '',
+      });
       if (!res.ok) {
         this.platform.log.warn('Button request failed:', button.buttonName, res.status, res.statusText);
       }
