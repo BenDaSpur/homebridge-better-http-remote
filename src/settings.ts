@@ -6,4 +6,4 @@ export const PLATFORM_NAME = 'BetterHttpRemote';
 /**
  * This must match the name of your plugin as defined the package.json `name` property
  */
-export const PLUGIN_NAME = 'homebridge-better-http-remote';
+export const PLUGIN_NAME = 'homebridge-esphome-buttons';

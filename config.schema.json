@@ -1,11 +1,11 @@
 {
-  "pluginAlias": "homebridge-better-http-remote",
+  "pluginAlias": "homebridge-esphome-buttons",
   "pluginType": "platform",
   "singular": true,
   "strictValidation": false,
   "schema": {
     "type": "object",
-    "required": ["name", "devices"],
+    "required": ["name"],
     "additionalProperties": false,
     "properties": {
       "name": {
@@ -21,13 +21,19 @@
         "minimum": 0,
         "description": "While the switch is held on, send a button press every this many ms (e.g. 200–300 for brightness/fan). Set to 0 for single press only."
       },
+      "discoverDevicesOnNetwork": {
+        "type": "boolean",
+        "title": "Discover devices on network",
+        "default": false,
+        "description": "If true, discover all ESPHome devices on the local network via mDNS (no need to list baseUrl per device). Then discovers buttons from each device. You can still add devices manually; both are merged."
+      },
       "devices": {
         "title": "ESPHome Devices",
         "type": "array",
-        "description": "List of ESPHome devices (with web server) whose buttons you want to expose in HomeKit.",
+        "description": "List of ESPHome devices (optional if discoverDevicesOnNetwork is true). Each needs baseUrl unless you only use network discovery.",
         "items": {
           "type": "object",
-          "required": ["name", "baseUrl", "buttons"],
+          "required": ["name", "baseUrl"],
           "additionalProperties": false,
           "properties": {
             "name": {
@@ -40,10 +46,16 @@
               "title": "Base URL",
               "description": "Base URL of the ESPHome device web server, e.g. http://mainbedroom.local or http://192.168.1.10. No trailing slash."
             },
+            "discoverButtons": {
+              "type": "boolean",
+              "title": "Auto-discover buttons",
+              "default": false,
+              "description": "If true, buttons are discovered from the device at startup (no need to list them manually)."
+            },
             "buttons": {
               "type": "array",
               "title": "Buttons",
-              "description": "Buttons to expose. Each appears as a switch in HomeKit; turning it on triggers the button press. Hold on to repeat (see repeatIntervalMs).",
+              "description": "Buttons to expose (optional if discoverButtons is true). Each appears as a switch in HomeKit.",
               "items": {
                 "type": "object",
                 "required": ["name", "id"],

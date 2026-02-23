@@ -6,7 +6,7 @@
 
 <span align="center">
 
-# Better HTTP Remote
+# ESPHome Buttons
 
 </span>
 
@@ -32,7 +32,7 @@ Expose **ESPHome device buttons** as HomeKit switches. When you turn a switch "o
 
    If you don’t set `id`, ESPHome generates one from the name (e.g. `"Fan on/off"` → `fan-on-off`). You can find the generated id in the device’s web UI or by listing the buttons.
 
-3. In Homebridge, add the **Better HTTP Remote** platform and list your devices and buttons (see example below).
+3. In Homebridge, add the **ESPHome Buttons** platform and list your devices and buttons (see example below).
 
 ---
 
@@ -64,6 +64,34 @@ Based on your `mainbedroom.yaml`, you can configure the platform like this:
 
 Use your device’s hostname (e.g. `mainbedroom.local`) or IP as `baseUrl`. Each entry in `buttons` becomes a switch in HomeKit; turning it on triggers that button on the device.
 
+### Discover all ESPHome devices on the network (no baseUrl needed)
+
+You can skip listing devices and baseUrls entirely. Set **`discoverDevicesOnNetwork`: true** and the plugin will find all ESPHome devices on your LAN via mDNS (they advertise `_esphomelib._tcp`), then discover buttons from each device:
+
+```json
+{
+  "platform": "BetterHttpRemote",
+  "name": "HTTP Remote",
+  "discoverDevicesOnNetwork": true
+}
+```
+
+Homebridge must run on the same network as the ESPHome devices. You can still add a **`devices`** array; discovered and manual devices are merged. Each discovered device uses **`discoverButtons: true`** so buttons are also auto-discovered.
+
+### Auto-discover buttons (per device)
+
+Set **`discoverButtons`: true** on a device and omit **`buttons`** to have the plugin discover all button entities from the device at startup (via its `/events` stream). The device must be reachable when Homebridge starts. Example:
+
+```json
+{
+  "name": "Main Bedroom",
+  "baseUrl": "http://mainbedroom.local",
+  "discoverButtons": true
+}
+```
+
+You can still set **`buttons`** manually for full control; discovery is for convenience when you want all buttons with default settings.
+
 ### Hold to repeat (brightness, fan speed, etc.)
 
 For buttons you want to "hold" (e.g. brighter / dimmer, fan speed), the switch **stays on** while you hold it and sends repeated presses at an interval:
@@ -82,19 +110,19 @@ To run this plugin on a different machine than where you develop:
 ### 1. Build and pack on your dev machine
 
 ```bash
-cd /path/to/homebridge-better-http-remote
+cd /path/to/homebridge-esphome-buttons
 npm run build
 npm pack
 ```
 
-This creates a file like `homebridge-better-http-remote-1.0.0.tgz`.
+This creates a file like `homebridge-esphome-buttons-1.0.0.tgz`.
 
 ### 2. Copy the tarball to the server
 
 Use `scp`, SFTP, or any copy method, e.g.:
 
 ```bash
-scp homebridge-better-http-remote-1.0.0.tgz user@your-homebridge-server:~/
+scp homebridge-esphome-buttons-1.0.0.tgz user@your-homebridge-server:~/
 ```
 
 ### 3. Install the plugin on the server
@@ -103,13 +131,13 @@ SSH into the server, then install the plugin **globally** (so the global Homebri
 
 ```bash
 ssh user@your-homebridge-server
-sudo npm install -g ./homebridge-better-http-remote-1.0.0.tgz
+sudo npm install -g ./homebridge-esphome-buttons-1.0.0.tgz
 ```
 
 If your Homebridge runs as a user (e.g. `hb-ui` or your own user) and uses a global Homebridge:
 
 ```bash
-npm install -g ./homebridge-better-http-remote-1.0.0.tgz
+npm install -g ./homebridge-esphome-buttons-1.0.0.tgz
 ```
 
 (Use the same user that runs Homebridge, and omit `sudo` if you use a user-level Node/npm.)
@@ -147,7 +175,7 @@ Restart the Homebridge process (service, Docker, or `homebridge -D`), then in th
 
 ## Publishing to npm (so others can install it)
 
-To have your plugin installable like any other Homebridge plugin (from the Homebridge UI or `npm install -g homebridge-better-http-remote`):
+To have your plugin installable like any other Homebridge plugin (from the Homebridge UI or `npm install -g homebridge-esphome-buttons`):
 
 ### 1. Before first publish
 
@@ -166,17 +194,17 @@ npm login             # log in to npm (one-time or when session expires)
 npm publish          # publishes; runs prepublishOnly (lint + build) first
 ```
 
-- The first time you publish, the package name `homebridge-better-http-remote` will be created on npm (it must be unused).
+- The first time you publish, the package name `homebridge-esphome-buttons` will be created on npm (it must be unused).
 - After that, **only you** can publish new versions of this package (same npm user).
 
 ### 3. Installing the published plugin
 
 Once published, anyone (including you) can install it like other plugins:
 
-- **Homebridge UI:** Plugins → search for “Better HTTP Remote” or “homebridge-better-http-remote” and install.
+- **Homebridge UI:** Plugins → search for “ESPHome Buttons” or “homebridge-esphome-buttons” and install.
 - **CLI:**
   ```bash
-  npm install -g homebridge-better-http-remote
+  npm install -g homebridge-esphome-buttons
   ```
 
 Then add the **BetterHttpRemote** platform to the Homebridge config (see config example above) and restart Homebridge.

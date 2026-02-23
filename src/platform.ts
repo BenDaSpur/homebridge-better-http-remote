@@ -1,5 +1,7 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 
+import { discoverButtonsFromDevice } from './esphomeDiscovery.js';
+import { discoverESPHomeDevicesOnNetwork } from './esphomeDeviceDiscovery.js';
 import { RemoteButtonAccessory } from './platformAccessory.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
@@ -12,7 +14,9 @@ export interface ESPHomeButton {
 export interface ESPHomeDevice {
   name: string;
   baseUrl: string;
-  buttons: ESPHomeButton[];
+  /** When true, buttons are discovered from the device's /events stream; buttons array is optional. */
+  discoverButtons?: boolean;
+  buttons?: ESPHomeButton[];
 }
 
 export interface RemoteButtonConfig {
@@ -29,6 +33,8 @@ export interface BetterHttpRemotePlatformConfig extends PlatformConfig {
   name?: string;
   /** Default repeat interval (ms) while switch is held; 0 = single press only. Default 250. */
   repeatIntervalMs?: number;
+  /** When true, discover all ESPHome devices on the network via mDNS; devices array is optional. */
+  discoverDevicesOnNetwork?: boolean;
   devices?: ESPHomeDevice[];
 }
 
@@ -52,7 +58,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     this.log.debug('Finished initializing platform:', this.config.name);
     this.api.on('didFinishLaunching', () => {
       this.log.debug('Executed didFinishLaunching callback');
-      this.discoverDevices();
+      void this.discoverDevices();
     });
   }
 
@@ -61,22 +67,68 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     this.accessories.set(accessory.UUID, accessory);
   }
 
-  discoverDevices() {
+  async discoverDevices() {
+    let devicesToUse: Array<{ name: string; baseUrl: string; discoverButtons?: boolean; buttons?: ESPHomeButton[] }> = [];
+
+    if (this.config.discoverDevicesOnNetwork) {
+      this.log.info('Discovering ESPHome devices on network (mDNS)...');
+      try {
+        const discovered = await discoverESPHomeDevicesOnNetwork();
+        this.log.info('Discovered', discovered.length, 'ESPHome device(s) on network');
+        devicesToUse = discovered.map((d) => ({
+          name: d.name,
+          baseUrl: `http://${d.ip}`,
+          discoverButtons: true,
+        }));
+      } catch (err) {
+        this.log.warn('Network discovery failed:', err);
+      }
+    }
+
     const devices = this.config.devices;
-    if (!Array.isArray(devices) || devices.length === 0) {
-      this.log.debug('No devices in config');
+    if (Array.isArray(devices) && devices.length > 0) {
+      for (const device of devices) {
+        if (device.baseUrl) {
+          devicesToUse.push({
+            name: device.name || device.baseUrl.replace(/\/$/, ''),
+            baseUrl: device.baseUrl.replace(/\/$/, ''),
+            discoverButtons: device.discoverButtons,
+            buttons: device.buttons,
+          });
+        }
+      }
+    }
+
+    if (devicesToUse.length === 0) {
+      this.log.debug('No devices (discovery found none and config has none)');
       return;
     }
 
     const buttonConfigs: RemoteButtonConfig[] = [];
-    for (const device of devices) {
-      if (!device.baseUrl || !Array.isArray(device.buttons)) {
-        continue;
-      }
+    const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
+
+    for (const device of devicesToUse) {
       const baseUrl = device.baseUrl.replace(/\/$/, '');
       const deviceName = device.name || baseUrl;
-      const platformRepeat = typeof this.config.repeatIntervalMs === 'number' ? Math.max(0, this.config.repeatIntervalMs) : 250;
-      for (const btn of device.buttons) {
+      let buttons: ESPHomeButton[];
+
+      if (device.discoverButtons) {
+        this.log.info('Discovering buttons from device:', deviceName, baseUrl);
+        try {
+          const discovered = await discoverButtonsFromDevice(baseUrl);
+          buttons = discovered.map((b) => ({ id: b.id, name: b.name }));
+          this.log.info('Discovered', buttons.length, 'button(s) from', deviceName);
+        } catch (err) {
+          this.log.warn('Discovery failed for', deviceName, err);
+          buttons = [];
+        }
+      } else if (Array.isArray(device.buttons)) {
+        buttons = device.buttons;
+      } else {
+        continue;
+      }
+
+      for (const btn of buttons) {
         if (!btn.id || !btn.name) {
           continue;
         }

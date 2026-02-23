@@ -1,18 +1,18 @@
 {
-  "name": "homebridge-better-http-remote",
-  "displayName": "Better HTTP Remote",
+  "name": "homebridge-esphome-buttons",
+  "displayName": "ESPHome Buttons",
   "type": "module",
   "version": "1.0.0",
   "description": "Expose ESPHome device buttons as HomeKit switches (trigger via HTTP). Hold to repeat for brightness/fan.",
   "author": "Your Name",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/BenDaSpur/homebridge-better-http-remote#readme",
+  "homepage": "https://github.com/BenDaSpur/homebridge-esphome-buttons#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BenDaSpur/homebridge-better-http-remote.git"
+    "url": "https://github.com/BenDaSpur/homebridge-esphome-buttons.git"
   },
   "bugs": {
-    "url": "https://github.com/BenDaSpur/homebridge-better-http-remote/issues"
+    "url": "https://github.com/BenDaSpur/homebridge-esphome-buttons/issues"
   },
   "keywords": [
     "homebridge-plugin",
@@ -38,7 +38,8 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "dependencies": {
-    "homebridge-lib": "^7.1.12"
+    "homebridge-lib": "^7.1.12",
+    "multicast-dns": "^7.2.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
