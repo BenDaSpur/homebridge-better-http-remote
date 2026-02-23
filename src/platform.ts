@@ -115,7 +115,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
       if (device.discoverButtons) {
         this.log.info('Discovering buttons from device:', deviceName, baseUrl);
         try {
-          const discovered = await discoverButtonsFromDevice(baseUrl);
+          const discovered = await discoverButtonsFromDevice(baseUrl, this.log);
           buttons = discovered.map((b) => ({ id: b.id, name: b.name }));
           this.log.info('Discovered', buttons.length, 'button(s) from', deviceName);
         } catch (err) {
