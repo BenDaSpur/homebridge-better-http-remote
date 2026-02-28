@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.11] - 2026-02-28
+
+- docs: update README and CHANGELOG for button naming and accessory management (0cbbf6b)
+
 ## [1.0.10] - 2026-02-28
 
 - chore: update CHANGELOG format and improve HomeKit accessory naming (f0f32dc)
