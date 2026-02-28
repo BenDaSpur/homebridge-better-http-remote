@@ -20,6 +20,8 @@ export interface ESPHomeButton {
 export interface ESPHomeDevice {
   name: string;
   baseUrl: string;
+  /** When singleRemotePerDevice is true: name of the one tile in the Home app (e.g. "Ceiling Fan"). If unset, uses "{name} Remote". */
+  accessoryName?: string;
   /** When true, buttons are discovered from the device's /events stream; buttons array is optional. */
   discoverButtons?: boolean;
   buttons?: ESPHomeButton[];
@@ -42,6 +44,8 @@ export interface RemoteButtonConfig {
 /** Context for a single "remote" accessory (one per device, many buttons). */
 export interface RemoteDeviceContext {
   deviceName: string;
+  /** Display name for the single tile in the Home app (e.g. "Ceiling Fan"). */
+  accessoryDisplayName: string;
   baseUrl: string;
   buttons: RemoteButtonConfig[];
 }
@@ -97,6 +101,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     type DeviceEntry = {
       name: string;
       baseUrl: string;
+      accessoryName?: string;
       discoverButtons?: boolean;
       buttons?: ESPHomeButton[];
       controlType?: ControlType;
@@ -125,6 +130,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
           devicesToUse.push({
             name: device.name || device.baseUrl.replace(/\/$/, ''),
             baseUrl: device.baseUrl.replace(/\/$/, ''),
+            accessoryName: device.accessoryName,
             discoverButtons: device.discoverButtons,
             buttons: device.buttons,
             controlType: device.controlType,
@@ -188,7 +194,8 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
       }
       if (buttonConfigs.length > 0) {
         if (singleRemotePerDevice) {
-          deviceContexts.push({ deviceName, baseUrl, buttons: buttonConfigs });
+          const accessoryDisplayName = (typeof device.accessoryName === 'string' && device.accessoryName.trim()) || `${deviceName} Remote`;
+          deviceContexts.push({ deviceName, accessoryDisplayName, baseUrl, buttons: buttonConfigs });
         } else {
           singleButtonConfigs.push(...buttonConfigs);
         }
@@ -198,7 +205,7 @@ export class BetterHttpRemotePlatform implements DynamicPlatformPlugin {
     if (singleRemotePerDevice) {
       for (const ctx of deviceContexts) {
         const uuid = this.api.hap.uuid.generate(`esphome:${ctx.baseUrl}:remote`);
-        const displayName = `${ctx.deviceName} Remote`;
+        const displayName = ctx.accessoryDisplayName;
         const existingAccessory = this.accessories.get(uuid);
 
         if (existingAccessory) {

@@ -25,5 +25,3 @@ All notable changes to this project will be documented in this file.
 - Update configuration and refactor code for Better HTTP Remote plugin. Changed Prettier settings for formatting consistency, improved ESLint configuration, and streamlined TypeScript imports and logic in platform and accessory files for better readability and maintainability. (9b40cbd)
 - Refactor Homebridge plugin to Better HTTP Remote, adding support for ESPHome device buttons. Updated configuration schema, README, and example Homebridge config. Enhanced ESLint and TypeScript settings for improved code quality. (5c58799)
 - Initial commit (6fa6b22)
-
-

@@ -61,6 +61,11 @@
               "title": "Device Name",
               "description": "Friendly name for the device (e.g. Main Bedroom)."
             },
+            "accessoryName": {
+              "type": "string",
+              "title": "Tile name in Home app",
+              "description": "When \"Single remote per device\" is on: name of the one tile (e.g. Ceiling Fan). Tap it to see all buttons. If empty, uses \"{Device Name} Remote\"."
+            },
             "baseUrl": {
               "type": "string",
               "title": "Base URL",

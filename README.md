@@ -92,12 +92,35 @@ Set **`discoverButtons`: true** on a device and omit **`buttons`** to have the p
 
 You can still set **`buttons`** manually for full control; discovery is for convenience when you want all buttons with default settings.
 
-### One accessory per button vs one remote per device
+### One tile (digital remote) vs many tiles
 
-- **Default (`singleRemotePerDevice`: false):** One HomeKit accessory per button. Each shows its **correct name** in the Home app (e.g. “Fan on/off (mainbedroom)”, “Brighter lights (mainbedroom)”). More tiles, but names are right.
-- **`singleRemotePerDevice`: true:** One “remote” accessory per device with all buttons inside. The Home app often shows the **accessory name** for every control (“mainbedroom Remote”), so labels are duplicated. Use this only if you prefer the grouped view and are okay renaming in Home or ignoring the labels.
+- **Default (`singleRemotePerDevice`: false):** One HomeKit accessory per button. Each button is its own tile in the room (e.g. “Fan on/off (mainbedroom)”, “Brighter lights (mainbedroom)”). Clear names, but many tiles.
+- **`singleRemotePerDevice`: true:** One **tile per device**. Tap it to open a detail view with all buttons inside—like a digital remote. Keeps the room view clean.
 
-Set **`singleRemotePerDevice`: true** in the platform config if you want the grouped remote; leave it false (default) to get correct names.
+To get a single tile (e.g. **“Ceiling Fan”**) that opens to all fan and light controls:
+
+1. Set **`singleRemotePerDevice`: true** in the platform config.
+2. Optionally set **`accessoryName`** on the device (e.g. `"Ceiling Fan"`) so the tile shows that name instead of “{Device Name} Remote”.
+
+Example: one “Ceiling Fan” tile in Master Bedroom that opens to Fan on/off, Fan reverse, Fan speeds, Brighter/Lower lights, etc.:
+
+```json
+{
+  "platform": "BetterHttpRemote",
+  "name": "ESPHome Buttons",
+  "singleRemotePerDevice": true,
+  "devices": [
+    {
+      "name": "Main Bedroom",
+      "accessoryName": "Ceiling Fan",
+      "baseUrl": "http://mainbedroom.local",
+      "discoverButtons": true
+    }
+  ]
+}
+```
+
+After changing to `singleRemotePerDevice: true` or editing `accessoryName`, restart Homebridge. You may need to remove the old accessories from the Home app and re-add the bridge (or let the plugin re-register) so the single tile appears correctly.
 
 ### Button vs switch (control type)
 
