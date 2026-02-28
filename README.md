@@ -122,6 +122,10 @@ Example: one “Ceiling Fan” tile in Master Bedroom that opens to Fan on/off, 
 
 After changing to `singleRemotePerDevice: true` or editing `accessoryName`, restart Homebridge. You may need to remove the old accessories from the Home app and re-add the bridge (or let the plugin re-register) so the single tile appears correctly.
 
+**Button labels in the single-remote view:** The plugin sets `ConfiguredName` on each Switch service so the Home app shows each button's real name (e.g. "Fan on/off", "Brighter lights") instead of the accessory name. This requires **iOS 17 or later**. On older iOS, the Home app may show the accessory name for every row; long-press a control, open Settings, clear the name, accept the suggested name, and tap Done.
+
+**Important:** After switching to `singleRemotePerDevice` or changing button names, you may need to **remove the accessory from the Home app and re-pair the bridge** so that `ConfiguredName` values are picked up fresh. Cached accessories keep their old names.
+
 ### Button vs switch (control type)
 
 HomeKit only exposes **Switch** for “tap in app → trigger,” so both styles use a Switch in the Home app. You choose the **behavior**:

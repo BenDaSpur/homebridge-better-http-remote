@@ -42,11 +42,15 @@ export class RemoteButtonAccessory {
       const svc =
         this.accessory.getServiceById(this.platform.Service.Switch, subtype) ||
         this.accessory.addService(this.platform.Service.Switch, button.buttonName, subtype);
-      // Ensure each control shows its real name (e.g. "Fan on/off") in the Home app, not the accessory name.
+
+      // ConfiguredName is respected by iOS 17+ for per-service labels inside a multi-service accessory.
+      // Unlike Name, it actually shows up in the Home app without manual renaming.
       svc.setCharacteristic(this.platform.Characteristic.Name, button.buttonName);
-      if ('displayName' in svc) {
-        (svc as Service & { displayName: string }).displayName = button.buttonName;
+      if (!svc.testCharacteristic(this.platform.Characteristic.ConfiguredName)) {
+        svc.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
       }
+      svc.setCharacteristic(this.platform.Characteristic.ConfiguredName, button.buttonName);
+
       svc
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet((value) => this.setOn(button, svc, value))
