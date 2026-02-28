@@ -43,7 +43,11 @@ jobs:
           fi
           SECTION="## [${VERSION}] - ${DATE}"$'\n\n'"${COMMITS}"$'\n\n'
           if [ -f CHANGELOG.md ]; then
-            echo "$SECTION$(cat CHANGELOG.md)" > CHANGELOG.md
+            # Insert new section after the header so "# Changelog" stays at the top
+            FIRST_SECTION=$(grep -n '^## \[' CHANGELOG.md | head -1 | cut -d: -f1)
+            HEADER=$(head -n $((FIRST_SECTION - 1)) CHANGELOG.md)
+            REST=$(tail -n +${FIRST_SECTION} CHANGELOG.md)
+            printf '%s\n\n%s%s' "$HEADER" "$SECTION" "$REST" > CHANGELOG.md
           else
             echo "# Changelog"$'\n\n'"All notable changes to this project will be documented in this file."$'\n\n'"$SECTION" > CHANGELOG.md
           fi

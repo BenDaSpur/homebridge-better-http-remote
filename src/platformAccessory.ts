@@ -42,8 +42,11 @@ export class RemoteButtonAccessory {
       const svc =
         this.accessory.getServiceById(this.platform.Service.Switch, subtype) ||
         this.accessory.addService(this.platform.Service.Switch, button.buttonName, subtype);
-      (svc as Service & { displayName?: string }).displayName = button.buttonName;
-      svc.updateCharacteristic(this.platform.Characteristic.Name, button.buttonName);
+      // Ensure each control shows its real name (e.g. "Fan on/off") in the Home app, not the accessory name.
+      svc.setCharacteristic(this.platform.Characteristic.Name, button.buttonName);
+      if ('displayName' in svc) {
+        (svc as Service & { displayName: string }).displayName = button.buttonName;
+      }
       svc
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet((value) => this.setOn(button, svc, value))
