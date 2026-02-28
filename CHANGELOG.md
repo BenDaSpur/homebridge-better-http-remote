@@ -1,3 +1,7 @@
+## [1.0.9] - 2026-02-28
+
+- feat: add accessoryName option for single remote per device configuration (0eff359)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
